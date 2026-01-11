@@ -1,5 +1,7 @@
 package bgu.spl.net.impl.stomp;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -7,20 +9,34 @@ import bgu.spl.net.api.MessageEncoderDecoder;
 
 public class StompEncoderDecoder implements MessageEncoderDecoder<Frame>{
 
-    private List<Byte> bytes = new LinkedList<>();
+    private byte[] bytes = new byte[1 << 10];;
+    private int len = 0;
     
     public Frame decodeNextByte(byte nextByte){
         if (nextByte == '\u0000'){
-            String msg = new String(bytes.toString())
-            Frame ret = new Frame(msg);
-            bytes.clear();
-            return ret;
+            return popString();
         }
-        bytes.add(nextByte);
+        pushByte(nextByte);
         return null;
     }
 
     public byte[] encode(Frame message){
         return (message.toString() + "\u0000").getBytes();
+    }
+
+    private void pushByte(byte nextByte) {
+        if (len >= bytes.length) {
+            bytes = Arrays.copyOf(bytes, len * 2);
+        }
+
+        bytes[len++] = nextByte;
+    }
+
+    private Frame popString() {
+        String msg = new String(bytes);
+        Frame ret = new Frame(msg);
+        bytes = new byte[1 << 10];
+        len = 0;
+        return ret;
     }
 }

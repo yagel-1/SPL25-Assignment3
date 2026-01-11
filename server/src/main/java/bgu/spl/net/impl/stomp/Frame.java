@@ -48,6 +48,18 @@ public class Frame {
         ret.append("\u0000");
         return ret.toString();
     }
+
+    public String getCommand() {
+        return command;
+    }
+
+    public Map<String, String> getHeaders() {
+        return headers;
+    }
+
+    public String getFrameBody() {
+        return frameBody;
+    }
 }
 
 

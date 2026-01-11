@@ -30,17 +30,9 @@ public class ConnectionImpl<T> implements Connections<T> {
     }
 
     public void disconnect(int connectionId){
+        // add send disconnect
+        // add close
         clients.remove(connectionId);
-        CopyOnWriteArrayList<String> clientChannelsList = clientChannels.get(connectionId);
-        if(clientChannelsList != null){
-            for(String channel : clientChannelsList){
-                CopyOnWriteArrayList<Integer> channelConnections = channels.get(channel);
-                if(channelConnections != null){
-                    channelConnections.remove(Integer.valueOf(connectionId));
-                }
-            }
-        }
-        clientChannels.remove(connectionId);
     }
 
     /**
@@ -68,5 +60,18 @@ public class ConnectionImpl<T> implements Connections<T> {
         }
 
         clientChannels.get(connectionId).add(channel);
+    }
+
+    public void removeChannel(int connectionId){
+        CopyOnWriteArrayList<String> clientChannelsList = clientChannels.get(connectionId);
+        if(clientChannelsList != null){
+            for(String channel : clientChannelsList){
+                CopyOnWriteArrayList<Integer> channelConnections = channels.get(channel);
+                if(channelConnections != null){
+                    channelConnections.remove(Integer.valueOf(connectionId));
+                }
+            }
+        }
+        clientChannels.remove(connectionId);
     }
 }
