@@ -21,7 +21,7 @@ public class StompEncoderDecoder implements MessageEncoderDecoder<Frame>{
     }
 
     public byte[] encode(Frame message){
-        return (message.toString() + "\u0000").getBytes();
+        return message.toString().getBytes();
     }
 
     private void pushByte(byte nextByte) {

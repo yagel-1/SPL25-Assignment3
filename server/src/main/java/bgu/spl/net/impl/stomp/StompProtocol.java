@@ -1,5 +1,8 @@
 package bgu.spl.net.impl.stomp;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import bgu.spl.net.api.StompMessagingProtocol;
 import bgu.spl.net.impl.ConnectionImpl;
 import bgu.spl.net.srv.Connections;
@@ -8,6 +11,8 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
     private int connectionId;
     private Connections<Frame> connection;
     private boolean shouldTerminate = false;
+
+    private Map<String, String> subscriptionIdToChannel = new HashMap<>();
 
 
 
@@ -34,7 +39,7 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
                 handleDisconnect(message);
                 break;
             default:
-                HandleError(message);
+                handleError("message command not found");
                 break;
         }
     }
@@ -46,32 +51,45 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
         return shouldTerminate;
     }
 
-    private void handleConnect(Frame message){
-        // String version = message.getHeaders().get("accept-version");
-        // String host = message.getHeaders().get("host");
-        // if (!version.equals("1.2") || !host.equals("stomp.cs.bgu.ac.il")){
-        //     Frame errorFrame = new Frame("ERROR\nmessage:malformed CONNECT frame\n\nThe CONNECT frame is missing required headers.\u0000");
-        //     connection.send(connectionId, errorFrame);
-        //     shouldTerminate = true;
-        //     return;
-        // }
-        // // verifyClient(message.getHeaders().get("login"), message.getHeaders().get("passcode"));
+    private void handleConnect(Frame msg){
+        String version = msg.getHeaders().get("accept-version");
+        String host = msg.getHeaders().get("host");
+        if (!version.equals("1.2") || !host.equals("stomp.cs.bgu.ac.il")){
+            handleError("CONNECTED version not supported or host invalid");
+            shouldTerminate = true;
+            return;
+        }
+        // verifyClient(msg.getHeaders().get("login"), msg.getHeaders().get("passcode"));
 
-        // connection.addClient(connectionId, ((ConnectionImpl<Frame>)connection).clients.get(connectionId));
-
-        // Frame connectedFrame = new Frame("CONNECTED\nversion:1.2\n\n\u0000");
-        // connection.send(connectionId, connectedFrame);
+        Frame connectedFrame = new Frame("CONNECTED\nversion:1.2\n\n\u0000");
+        connection.send(connectionId, connectedFrame);
     }
 
-    private void handleSubscribe(Frame message){}
+    private void handleSubscribe(Frame msg){
+        String destination = msg.getHeaders().get("destination");
+        String id = msg.getHeaders().get("id");
+        if (destination == null || id == null){
+            handleError("SUBSCRIBE missing destination or id");
+            return;
+        }
+        connection.addChannel(destination, Integer.parseInt(id));
+    }
 
-    private void handleUnsubscribe(Frame message){}
+    private void handleUnsubscribe(Frame msg){
+        String id = msg.getHeaders().get("id");
+        if (id == null){
+            handleError("SUBSCRIBE missing destination or id");
+            return;
+        }
+        connection.removeChannel(Integer.parseInt(id));
+    }
 
-    private void handleSend(Frame message){}
+    private void handleSend(Frame msg){}
 
-    private void handleDisconnect(Frame message){}
+    private void handleDisconnect(Frame msg){}
 
-    private void HandleError(Frame message){}
+    private void handleError(String errorMsg){
 
+    }
 }
 

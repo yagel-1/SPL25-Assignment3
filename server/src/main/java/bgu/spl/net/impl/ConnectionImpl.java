@@ -61,6 +61,7 @@ public class ConnectionImpl<T> implements Connections<T> {
 
         clientChannels.get(connectionId).add(channel);
     }
+    
 
     public void removeChannel(int connectionId){
         CopyOnWriteArrayList<String> clientChannelsList = clientChannels.get(connectionId);
