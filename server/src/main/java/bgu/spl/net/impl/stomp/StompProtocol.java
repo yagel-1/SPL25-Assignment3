@@ -1,10 +1,6 @@
 package bgu.spl.net.impl.stomp;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import bgu.spl.net.api.StompMessagingProtocol;
-import bgu.spl.net.impl.ConnectionImpl;
 import bgu.spl.net.srv.Connections;
 
 public class StompProtocol implements StompMessagingProtocol<Frame>{
