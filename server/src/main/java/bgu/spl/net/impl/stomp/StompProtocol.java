@@ -12,10 +12,6 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
     private Connections<Frame> connection;
     private boolean shouldTerminate = false;
 
-    private Map<String, String> subscriptionIdToChannel = new HashMap<>();
-
-
-
     public void start(int connectionId, Connections<Frame> connections){
         this.connectionId=connectionId;
         this.connection=connections;
@@ -72,7 +68,8 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
             handleError("SUBSCRIBE missing destination or id");
             return;
         }
-        connection.addChannel(destination, Integer.parseInt(id));
+        connection.subscribe(destination, connectionId, Integer.parseInt(id));
+
     }
 
     private void handleUnsubscribe(Frame msg){
@@ -81,7 +78,7 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
             handleError("SUBSCRIBE missing destination or id");
             return;
         }
-        connection.removeChannel(Integer.parseInt(id));
+        connection.unSubscribe(connectionId, Integer.parseInt(id));
     }
 
     private void handleSend(Frame msg){}

@@ -7,9 +7,12 @@ import bgu.spl.net.srv.ConnectionHandler;
 import bgu.spl.net.srv.Connections;
 
 public class ConnectionImpl<T> implements Connections<T> {
-    ConcurrentHashMap<Integer, ConnectionHandler<T>> clients;
-    ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>> channels;
-    ConcurrentHashMap<Integer, CopyOnWriteArrayList<String>> clientChannels;
+    // conectionID -> connectionHandler
+    ConcurrentHashMap<Integer, ConnectionHandler<T>> clients = new ConcurrentHashMap<>();
+    // channel -> list of (connectionIDs, subscriptionIDs)
+    ConcurrentHashMap<String, ConcurrentHashMap<Integer, Integer>> channelsToId = new ConcurrentHashMap<>();
+    // connectionID -> list of channels
+    ConcurrentHashMap<Integer, CopyOnWriteArrayList<String>> clientChannels = new ConcurrentHashMap<>();
 
     public boolean send(int connectionId, T msg){
         ConnectionHandler<T> connectionHandler = clients.get(connectionId);
@@ -21,9 +24,9 @@ public class ConnectionImpl<T> implements Connections<T> {
     }
 
     public void send(String channel, T msg){
-        CopyOnWriteArrayList<Integer> connectionIds = channels.get(channel);
+        ConcurrentHashMap<Integer, Integer> connectionIds = channelsToId.get(channel);
         if(connectionIds != null){
-            for(Integer id : connectionIds){
+            for(Integer id : connectionIds.keySet()){
                 send(id, msg);
             }
         }
@@ -33,12 +36,12 @@ public class ConnectionImpl<T> implements Connections<T> {
         // add send disconnect
         // add close
         clients.remove(connectionId);
+        removeChannel(connectionId);
     }
 
     /**
-     * Add a new client to the connections
+     * Add a client to the clients map
      * @param connectionId
-     * @param channel
      * @param connectionHandler
      */
     public void addClient(int connectionId, ConnectionHandler<T> connectionHandler){
@@ -47,32 +50,58 @@ public class ConnectionImpl<T> implements Connections<T> {
     }
 
     /**
-     * Add a channel to the channels map
+     * Subscribe a client to a channel
      * @param channel
      * @param connectionId
+     * @param subscriptionId
      */
-    public void addChannel(String channel, int connectionId){
-        CopyOnWriteArrayList<Integer> channelConnections = channels.putIfAbsent(channel, new CopyOnWriteArrayList<Integer>());
+    public void subscribe(String channel, int connectionId, int subscriptionId){
+        ConcurrentHashMap<Integer, Integer> channelConnections = channelsToId.putIfAbsent(channel, new ConcurrentHashMap<Integer, Integer>());
         if (channelConnections != null) {
-            channelConnections.add(connectionId);
+            channelConnections.put(connectionId, subscriptionId);
         } else {
-            channels.get(channel).add(connectionId);
+            channelsToId.get(channel).put(connectionId, subscriptionId);
         }
-
         clientChannels.get(connectionId).add(channel);
     }
     
-
-    public void removeChannel(int connectionId){
+    /**
+     * Remove all channels associated with a connectionId
+     * @param connectionId
+     */
+    private void removeChannel(int connectionId){
         CopyOnWriteArrayList<String> clientChannelsList = clientChannels.get(connectionId);
         if(clientChannelsList != null){
             for(String channel : clientChannelsList){
-                CopyOnWriteArrayList<Integer> channelConnections = channels.get(channel);
+                ConcurrentHashMap<Integer, Integer> channelConnections = channelsToId.get(channel);
                 if(channelConnections != null){
                     channelConnections.remove(Integer.valueOf(connectionId));
                 }
             }
         }
         clientChannels.remove(connectionId);
+    }
+
+    /**
+     * Unsubscribe a client from a channel
+     * @param connectionId
+     * @param subscriptionId
+     */
+    public void unSubscribe(int connectionId, int subscriptionId) {
+        CopyOnWriteArrayList<String> clientChannelsList = clientChannels.get(connectionId);
+        if(clientChannelsList != null){
+            for(String channel : clientChannelsList){
+                ConcurrentHashMap<Integer, Integer> channelConnections = channelsToId.get(channel);
+                if(channelConnections != null){
+                    Integer subId = channelConnections.get(Integer.valueOf(connectionId));
+                    if(subId != null && subId.equals(subscriptionId)){
+                        channelConnections.remove(Integer.valueOf(connectionId));
+                        clientChannelsList.remove(channel);
+                        return;
+                    }
+                }
+            }
+        }
+        
     }
 }
