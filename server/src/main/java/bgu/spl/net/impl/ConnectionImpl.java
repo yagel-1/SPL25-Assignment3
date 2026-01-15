@@ -33,8 +33,6 @@ public class ConnectionImpl<T> implements Connections<T> {
     }
 
     public void disconnect(int connectionId){
-        // add send disconnect
-        // add close
         clients.remove(connectionId);
         removeChannel(connectionId);
     }

@@ -7,6 +7,7 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
     private int connectionId;
     private Connections<Frame> connection;
     private boolean shouldTerminate = false;
+    private int counterMsgId = 1;
 
     public void start(int connectionId, Connections<Frame> connections){
         this.connectionId=connectionId;
@@ -31,7 +32,7 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
                 handleDisconnect(message);
                 break;
             default:
-                handleError("message command not found");
+                handleError(message, "message command not found");
                 break;
         }
     }
@@ -47,7 +48,7 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
         String version = msg.getHeaders().get("accept-version");
         String host = msg.getHeaders().get("host");
         if (!version.equals("1.2") || !host.equals("stomp.cs.bgu.ac.il")){
-            handleError("CONNECTED version not supported or host invalid");
+            handleError(msg, "CONNECTED version not supported or host invalid");
             shouldTerminate = true;
             return;
         }
@@ -61,7 +62,7 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
         String destination = msg.getHeaders().get("destination");
         String id = msg.getHeaders().get("id");
         if (destination == null || id == null){
-            handleError("SUBSCRIBE missing destination or id");
+            handleError(msg, "SUBSCRIBE missing destination or id");
             return;
         }
         connection.subscribe(destination, connectionId, Integer.parseInt(id));
@@ -71,18 +72,43 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
     private void handleUnsubscribe(Frame msg){
         String id = msg.getHeaders().get("id");
         if (id == null){
-            handleError("SUBSCRIBE missing destination or id");
+            handleError(msg, "SUBSCRIBE missing destination or id");
             return;
         }
         connection.unSubscribe(connectionId, Integer.parseInt(id));
     }
 
-    private void handleSend(Frame msg){}
+    private void handleSend(Frame msg){
+        String destination = msg.getHeaders().get("destination");
+        if (destination == null){
+            handleError(msg, "SEND missing destination");
+            return;
+        }
+        Frame frameToSend = createMsg(msg);
+        connection.send(destination, frameToSend);
+    }
 
-    private void handleDisconnect(Frame msg){}
+    private void handleDisconnect(Frame msg){
+        Frame receiptFrame = new Frame("RECEIPT\nreceipt-id:" + msg.getHeaders().get("receipt") + "\n\n\u0000");
+        connection.send(connectionId, receiptFrame);
+        connection.disconnect(connectionId);
+        shouldTerminate = true;
+    }
 
-    private void handleError(String errorMsg){
+    private void handleError(Frame msg, String errorMsg){
+        Frame errorFrame = new Frame("ERROR\nmessage:" + errorMsg + "\n\n" + msg.toString() + "\u0000");
+        connection.send(connectionId, errorFrame);
+        shouldTerminate = true;
+    }
 
+    private Frame createMsg(Frame msg){
+        String Id = "" + connectionId;
+        String msgId = "" + counterMsgId;
+        counterMsgId++;
+        String destination = msg.getHeaders().get("destination");
+        String body = msg.getFrameBody();
+        Frame frameToSend = new Frame("MESSAGE\nsubscription:" + Id + "\nmessage-id:" + msgId + "\ndestination:" + destination + "\n\n" + body + "\u0000");
+        return frameToSend;
     }
 }
 
