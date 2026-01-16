@@ -11,14 +11,17 @@ private:
     std::map<std::string, int> topicToSubscriptionId;
     int subscriptionIdCounter = 1;
     int receiptIdCounter = 1;
+    int disconnectReceiptId = -1;
+    bool loggedOut = false;
 
     std::string user;
-    std::vector<Event> events;
+    std::map<std::string, std::vector<Event>> userToEvents;
 
     void handleJoin(const std::string & line);   
     void handleExit(const std::string & line);   
     void handleReport(const std::string & line); 
     void handleSummary(const std::string & line);  
+    void handleLogOut();
 
 public:
     StompProtocol(ConnectionHandler & connectionHandler);

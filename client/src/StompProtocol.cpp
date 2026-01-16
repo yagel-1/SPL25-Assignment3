@@ -1,5 +1,6 @@
 #include <StompProtocol.h>
 #include <event.h>
+#include <fstream>
 
 StompProtocol::StompProtocol(ConnectionHandler & connectionHandler) : connectionHandler(connectionHandler) {}
 
@@ -11,14 +12,28 @@ void StompProtocol::readKeyBoard() {
 		std::string line(buf);
         size_t pos = line.find(' ');
         std::string command = (pos == std::string::npos) ? line : line.substr(0, pos);
-        if (command == "join") {
+        if (command == "join" && !loggedOut) {
             handleJoin(line);
-        } else if (command == "exit") {
+        } 
+        else if (command == "exit" && !loggedOut) {
             handleExit(line);
-        } else if (command == "report") {
+        } 
+        else if (command == "report" && !loggedOut) {
             handleReport(line);
-        } else if (command == "summary") {
+        }
+        else if (command == "summary" && !loggedOut) {
             handleSummary(line);
+        }
+        else if (command == "logout" && !loggedOut){
+            handleLogOut();
+        }
+        else{
+            if(loggedOut){
+                std::cout << "You are logged out. No further commands can be processed." << std::endl;
+                break;
+            }
+            else
+            std::cout << "Invalid command" << std::endl;
         }
     }
 }
@@ -79,7 +94,7 @@ void StompProtocol::handleReport(const std::string & line){
     names_and_events namesAndEvents = parseEventsFile(line.substr(line.find(' ') + 1));
     std::string teamAName = namesAndEvents.team_a_name;
     std::string teamBName = namesAndEvents.team_b_name;
-    events = namesAndEvents.events;
+    std::vector<Event> events = namesAndEvents.events;
 
     std::sort(events.begin(), events.end(), [](const Event & a, const Event & b) {
         return a.get_time() < b.get_time();
@@ -115,5 +130,92 @@ void StompProtocol::handleReport(const std::string & line){
     }
 }
 
-void StompProtocol::handleSummary(const std::string & line){  
+void StompProtocol::handleSummary(const std::string & line){
+
+    std::stringstream ss(line); 
+    std::string command, gameName, userName, fileName;
+    ss >> command;  
+    ss >> gameName;  
+    ss >> userName;  
+    ss >> fileName;
+    std::string teamAName = gameName.substr(0, gameName.find('_'));
+    std::string teamBName = gameName.substr(gameName.find('_') + 1);
+    std::ofstream outFile(fileName);
+    if (!outFile.is_open()) {
+        std::cerr << "Error opening file: " << fileName << std::endl;
+        return; 
+    }
+    std::vector<Event> events = userToEvents[userName];
+    std::sort(events.begin(), events.end(), [](const Event & a, const Event & b) {
+        return a.get_time() < b.get_time();
+    });
+    std::vector<std::map<std::string, std::string>> game_stats_list;
+    std::vector<std::map<std::string, std::string>> team_a_stats_list;
+    std::vector<std::map<std::string, std::string>> team_b_stats_list;
+    for (const Event & event : events) {
+        game_stats_list.push_back(event.get_game_updates());
+        team_a_stats_list.push_back(event.get_team_a_updates());
+        team_b_stats_list.push_back(event.get_team_b_updates());
+    }
+    std::sort(game_stats_list.begin(), game_stats_list.end(), [](const std::map<std::string, std::string> & a, const std::map<std::string, std::string> & b) {
+        return a.begin()->first < b.begin()->first;
+    });
+    std::sort(team_a_stats_list.begin(), team_a_stats_list.end(), [](const std::map<std::string, std::string> & a, const std::map<std::string, std::string> & b) {
+        return a.begin()->first < b.begin()->first;
+    });
+    std::sort(team_b_stats_list.begin(), team_b_stats_list.end(), [](const std::map<std::string, std::string> & a, const std::map<std::string, std::string> & b) {
+        return a.begin()->first < b.begin()->first;
+    });
+    outFile << teamAName << " VS " << teamBName << "\n";
+    outFile << "Game stats :\n";
+    outFile << "General stats:\n";
+    for (const auto & stats : game_stats_list) {
+        for (const auto & pair : stats) {
+            outFile << pair.first << ": " << pair.second << "\n";
+        }
+    }
+    outFile << teamAName << " stats:\n";
+    for (const auto & stats : team_a_stats_list) {
+        for (const auto & pair : stats) {
+            outFile << pair.first << ": " << pair.second << "\n";
+        }
+    }
+    outFile << teamBName << " stats:\n";
+    for (const auto & stats : team_b_stats_list) {
+        for (const auto & pair : stats) {
+            outFile << pair.first << ": " << pair.second << "\n";
+        }
+    }
+    outFile << "Game event reports:\n";
+    for (const Event & event : events) {
+        outFile << event.get_time() << " - " << event.get_name() << ":\n\n";
+        outFile << event.get_discription() << "\n\n";
+    }
+    outFile.close();
+}
+
+void StompProtocol::handleLogOut(){
+    loggedOut = true;
+    std::string disconnectMsg = "DISCONNECT\nreceipt:" + std::to_string(receiptIdCounter) + "\n\n\0";
+    disconnectReceiptId = receiptIdCounter;
+    receiptIdCounter++;
+    connectionHandler.sendFrameAscii(disconnectMsg, '\0');
+}
+
+void StompProtocol::readSocket() {
+    while (1) {
+        std::string frame;
+        if (!connectionHandler.getFrameAscii(frame, '\0')) {
+            std::cout << "Disconnected. Exiting...\n" << std::endl;
+            break;
+        }
+        std::cout << frame << std::endl;
+        if(frame.substr(0,frame.find('\n')) == "RECEIPT"){
+           int receiptId = std::stoi(frame.substr(frame.find(":")+1,frame.find('\n')));
+            if (receiptId == disconnectReceiptId) {
+                connectionHandler.close();
+                break;
+            }   
+        }
+    }
 }
