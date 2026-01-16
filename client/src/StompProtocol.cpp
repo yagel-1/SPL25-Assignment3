@@ -33,7 +33,7 @@ void StompProtocol::readKeyBoard() {
                 break;
             }
             else
-            std::cout << "Invalid command" << std::endl;
+                std::cout << "Invalid command" << std::endl;
         }
     }
 }
@@ -203,7 +203,7 @@ void StompProtocol::handleLogOut(){
 }
 
 void StompProtocol::readSocket() {
-    while (1) {
+    while (!loggedOut) {
         std::string frame;
         if (!connectionHandler.getFrameAscii(frame, '\0')) {
             std::cout << "Disconnected. Exiting...\n" << std::endl;

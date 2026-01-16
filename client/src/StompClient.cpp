@@ -22,12 +22,12 @@ bool validLogin(const std::string & line, std::string & host, short & port) {
 			host = hostAndPort.substr(0, posHostAndPort);
 			port = std::stoi(hostAndPort.substr(posHostAndPort + 1));
 		}
-		size_t pos2 = line.find(' ', pos1 + 1);
-		if (pos2 != std::string::npos) {
+		else {
 			return false;
 		}
-		size_t pos3 = line.find(' ', pos2 + 1);
-		if (pos3 != std::string::npos) {
+		
+		size_t pos2 = line.find(' ', pos1 + 1);
+		if (pos2 == std::string::npos) {
 			return false;
 		}
 		return true;
@@ -48,7 +48,7 @@ int main (int argc, char *argv[]) {
 			break;
 		}
 		else{
-			std::cout << "Invalid login command. Please use: login <host> <port>" << std::endl;
+			std::cout << "Invalid login command. Please use: login <host:port> <user> <passcode>" << std::endl;
 		}
 	}
     
@@ -59,8 +59,8 @@ int main (int argc, char *argv[]) {
     }
 	StompProtocol stompProtocol(connectionHandler);
 	stompProtocol.handleLogin(line);
-	std::thread threadKeyboard(&StompProtocol::readKeyBoard, stompProtocol, std::ref(connectionHandler));
-	std::thread threadSocket(&StompProtocol::readSocket, stompProtocol, std::ref(connectionHandler));
+	std::thread threadKeyboard(&StompProtocol::readKeyBoard, stompProtocol);
+	std::thread threadSocket(&StompProtocol::readSocket, stompProtocol);
 	
     threadKeyboard.join();
 	threadSocket.join();
