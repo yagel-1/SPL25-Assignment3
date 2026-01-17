@@ -63,6 +63,19 @@ const std::string &Event::get_discription() const
 
 Event::Event(const std::string &frame_body) : team_a_name(""), team_b_name(""), name(""), time(0), game_updates(), team_a_updates(), team_b_updates(), description("")
 {
+    size_t pos1 = frame_body.find("team a:");
+    team_a_name = frame_body.substr(pos1 + 2, frame_body.find('\n'));
+    size_t pos2 = frame_body.find("team b:");
+    team_b_name = frame_body.substr(pos2 + 2, frame_body.find('\n',pos2));
+    size_t pos3 = frame_body.find("event name:");
+    name = frame_body.substr(pos3 + 2, frame_body.find('\n',pos3));
+    size_t pos4 = frame_body.find("time");
+    time = std::stoi(frame_body.substr(pos4 + 2, frame_body.find('\n',pos4)));
+    size_t pos5 = frame_body.find("general game update :");\
+    std::string generalUp = frame_body.substr(pos5,frame_body.find("team a updates:"));
+    parseStringToMap(generalUp);
+    
+    
 }
 
 names_and_events parseEventsFile(std::string json_path)
