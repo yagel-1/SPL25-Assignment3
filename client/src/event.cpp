@@ -63,19 +63,47 @@ const std::string &Event::get_discription() const
 
 Event::Event(const std::string &frame_body) : team_a_name(""), team_b_name(""), name(""), time(0), game_updates(), team_a_updates(), team_b_updates(), description("")
 {
-    size_t pos1 = frame_body.find("team a:");
-    team_a_name = frame_body.substr(pos1 + 2, frame_body.find('\n'));
-    size_t pos2 = frame_body.find("team b:");
-    team_b_name = frame_body.substr(pos2 + 2, frame_body.find('\n',pos2));
-    size_t pos3 = frame_body.find("event name:");
-    name = frame_body.substr(pos3 + 2, frame_body.find('\n',pos3));
-    size_t pos4 = frame_body.find("time");
-    time = std::stoi(frame_body.substr(pos4 + 2, frame_body.find('\n',pos4)));
-    size_t pos5 = frame_body.find("general game update :");\
-    std::string generalUp = frame_body.substr(pos5,frame_body.find("team a updates:"));
-    parseStringToMap(generalUp);
+    size_t posTeamA = frame_body.find("team a:");
+    team_a_name = frame_body.substr(posTeamA + 2, frame_body.find('\n') - posTeamA + 2);
+
+    size_t posTeamB = frame_body.find("team b:");
+    team_b_name = frame_body.substr(posTeamB + 2, frame_body.find('\n', posTeamB) - posTeamB + 2);
+
+    size_t posEventName = frame_body.find("event name:");
+    name = frame_body.substr(posEventName + 2, frame_body.find('\n', posEventName) - posEventName + 2);
+
+    size_t posTime = frame_body.find("time");
+    time = std::stoi(frame_body.substr(posTime + 2, frame_body.find('\n', posTime) - posTime + 2));
+
+    size_t posGeneralUp = frame_body.find("general game update:");
+    size_t posTeamAUp = frame_body.find("team a updates:");
+    std::string generalUp = frame_body.substr(posGeneralUp + 1, posTeamAUp - posGeneralUp + 1);
+    game_updates = parseStringToMap(generalUp);
+
+    size_t posTeamBUp = frame_body.find("team b updates:");
+    std::string teamAUp = frame_body.substr(posTeamAUp + 1, posTeamBUp - posTeamAUp + 1);
+    team_a_updates = parseStringToMap(teamAUp);
+
+    size_t posDesc = frame_body.find("description:");
+    std::string teamBUp = frame_body.substr(posTeamBUp + 1, posDesc - posTeamBUp + 1);
+    team_b_updates = parseStringToMap(teamBUp);
+
+    description = frame_body.substr(posDesc + 1, frame_body.find('\0') - posDesc + 1);
     
     
+}
+
+std::map<std::string, std::string> parseStringToMap(std::string map){
+    std::map<std::string, std::string> hashMap;
+    std::string remain = map;
+    while (remain.length() != 0){
+        size_t posKey = remain.find(':');
+        std::string key = remain.substr(4, posKey - 4);
+        std::string value = remain.substr(posKey + 2, remain.find('\n') - posKey + 2);
+        hashMap[key] = value;
+        remain = remain.substr(remain.find('\n') + 1);
+    }
+    return hashMap;
 }
 
 names_and_events parseEventsFile(std::string json_path)

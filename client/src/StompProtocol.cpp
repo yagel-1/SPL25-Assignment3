@@ -209,22 +209,23 @@ void StompProtocol::readSocket() {
             std::cout << "Disconnected. Exiting...\n" << std::endl;
             break;
         }
+
         std::cout << frame << std::endl;
+
         if(frame.substr(0,frame.find('\n')) == "RECEIPT"){
-            int receiptId = std::stoi(frame.substr(frame.find(":")+1,frame.find('\n')));
+            int receiptId = std::stoi(frame.substr(frame.find(":")+1, frame.find('\n') - frame.find(":")+1));
             if (receiptId == disconnectReceiptId) {
                 connectionHandler.close();
                 break;
             }   
         }
         if(frame.substr(0,frame.find('\n')) == "ERROR"){
-            std::cout << "Error received from server." << std::endl;
             connectionHandler.close();
             break;
         }
         if(frame.substr(0,frame.find('\n')) == "MESSAGE"){
             std::string body = frame.substr(frame.find("\n\n") +1); 
-            std::string user = body.substr(body.find(' ') +1, body.find("\n"));
+            std::string user = body.substr(body.find(' ') +1, body.find("\n") - body.find(' ') +1);
             body = body.substr(body.find("\n") +1);
             Event event(body);
             userToEvents[user].push_back(event);
