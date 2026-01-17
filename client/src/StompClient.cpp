@@ -57,7 +57,8 @@ int main (int argc, char *argv[]) {
         std::cerr << "Cannot connect to " << host << ":" << port << std::endl;
         return 1;
     }
-	StompProtocol stompProtocol(connectionHandler);
+	std::mutex mtx;
+	StompProtocol stompProtocol(connectionHandler, std::ref(mtx));
 	stompProtocol.handleLogin(line);
 	std::thread threadKeyboard(&StompProtocol::readKeyBoard, stompProtocol);
 	std::thread threadSocket(&StompProtocol::readSocket, stompProtocol);

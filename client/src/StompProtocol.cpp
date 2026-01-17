@@ -2,7 +2,7 @@
 #include <event.h>
 #include <fstream>
 
-StompProtocol::StompProtocol(ConnectionHandler & connectionHandler) : connectionHandler(connectionHandler) {}
+StompProtocol::StompProtocol(ConnectionHandler & connectionHandler, std::mutex &mtx) : connectionHandler(connectionHandler), mtx(mtx) {}
 
 void StompProtocol::readKeyBoard() {
     while (1) {
@@ -29,13 +29,18 @@ void StompProtocol::readKeyBoard() {
         }
         else{
             if(loggedOut){
-                std::cout << "You are logged out. No further commands can be processed." << std::endl;
+                safePrint("You are logged out. No further commands can be processed.");
                 break;
             }
             else
-                std::cout << "Invalid command" << std::endl;
+               safePrint("Invalid command");
         }
     }
+}
+
+void StompProtocol::safePrint(const std::string& msg) {
+    std::lock_guard<std::mutex> lock(mtx);
+    std::cout << msg << std::endl;
 }
 
 const std::string &StompProtocol::getUser() const{
@@ -142,8 +147,8 @@ void StompProtocol::handleSummary(const std::string & line){
     std::string teamBName = gameName.substr(gameName.find('_') + 1);
     std::ofstream outFile(fileName);
     if (!outFile.is_open()) {
-        std::cerr << "Error opening file: " << fileName << std::endl;
-        return; 
+        safePrint("Error opening file: " + fileName);
+        return;
     }
     std::vector<Event> events = userToEvents[userName];
     std::sort(events.begin(), events.end(), [](const Event & a, const Event & b) {
@@ -206,12 +211,9 @@ void StompProtocol::readSocket() {
     while (!loggedOut) {
         std::string frame;
         if (!connectionHandler.getFrameAscii(frame, '\0')) {
-            std::cout << "Disconnected. Exiting...\n" << std::endl;
             break;
         }
-
-        std::cout << frame << std::endl;
-
+        safePrint(frame);
         if(frame.substr(0,frame.find('\n')) == "RECEIPT"){
             int receiptId = std::stoi(frame.substr(frame.find(":")+1, frame.find('\n') - frame.find(":")+1));
             if (receiptId == disconnectReceiptId) {
