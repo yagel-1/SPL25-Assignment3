@@ -2,12 +2,14 @@
 
 #include "../include/ConnectionHandler.h"
 #include <event.h>
+#include <mutex>
 
 // TODO: implement the STOMP protocol
 class StompProtocol
 {
 private:
     ConnectionHandler &connectionHandler;
+    mutable std::mutex mtx;
     std::map<std::string, int> topicToSubscriptionId;
     int subscriptionIdCounter = 1;
     int receiptIdCounter = 1;
@@ -22,6 +24,9 @@ private:
     void handleReport(const std::string & line); 
     void handleSummary(const std::string & line);  
     void handleLogOut();
+    void safePrint(const std::string& msg);
+    const std::vector<Event> getEventsList(const std::string & userName) const;
+    void putEvent(const std::string & userName, const Event & event);
 
 public:
     StompProtocol(ConnectionHandler & connectionHandler);

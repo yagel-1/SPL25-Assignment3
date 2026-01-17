@@ -57,11 +57,10 @@ int main (int argc, char *argv[]) {
         std::cerr << "Cannot connect to " << host << ":" << port << std::endl;
         return 1;
     }
-	std::mutex mtx;
-	StompProtocol stompProtocol(connectionHandler, std::ref(mtx));
+	StompProtocol stompProtocol(connectionHandler);
 	stompProtocol.handleLogin(line);
-	std::thread threadKeyboard(&StompProtocol::readKeyBoard, stompProtocol);
-	std::thread threadSocket(&StompProtocol::readSocket, stompProtocol);
+	std::thread threadKeyboard(&StompProtocol::readKeyBoard, std::ref(stompProtocol));
+	std::thread threadSocket(&StompProtocol::readSocket, std::ref(stompProtocol));
 	
     threadKeyboard.join();
 	threadSocket.join();

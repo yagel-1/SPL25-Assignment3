@@ -1,6 +1,7 @@
 package bgu.spl.net.impl.stomp;
 
 import bgu.spl.net.api.StompMessagingProtocol;
+import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.srv.Connections;
 
 public class StompProtocol implements StompMessagingProtocol<Frame>{
@@ -9,9 +10,12 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
     private boolean shouldTerminate = false;
     private int counterMsgId = 1;
 
+    private Database database= Database.getInstance();
+
     public void start(int connectionId, Connections<Frame> connections){
         this.connectionId=connectionId;
         this.connection=connections;
+
     }
 
     public void process(Frame message){
@@ -52,7 +56,7 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
             shouldTerminate = true;
             return;
         }
-        // verifyClient(msg.getHeaders().get("login"), msg.getHeaders().get("passcode"));
+        database.login(connectionId, msg.getHeaders().get("login"),  msg.getHeaders().get("passcode"));
 
         Frame connectedFrame = new Frame("CONNECTED\nversion:1.2\n\n\u0000");
         connection.send(connectionId, connectedFrame);
@@ -84,6 +88,10 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
             handleError(msg, "SEND missing destination");
             return;
         }
+        String body = msg.getFrameBody();
+        String userName = body.substring(body.indexOf(' ') + 1, body.indexOf('\n'));
+        database.trackFileUpload(userName, destination, destination);
+
         Frame frameToSend = createMsg(msg);
         connection.send(destination, frameToSend);
     }
@@ -93,6 +101,7 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
         connection.send(connectionId, receiptFrame);
         connection.disconnect(connectionId);
         shouldTerminate = true;
+        database.logout(connectionId);
     }
 
     private void handleError(Frame msg, String errorMsg){
@@ -109,6 +118,10 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
         String body = msg.getFrameBody();
         Frame frameToSend = new Frame("MESSAGE\nsubscription:" + Id + "\nmessage-id:" + msgId + "\ndestination:" + destination + "\n\n" + body + "\u0000");
         return frameToSend;
+    }
+
+    public void getReport(){
+        database.printReport();
     }
 }
 

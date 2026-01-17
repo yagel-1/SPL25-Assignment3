@@ -12,6 +12,7 @@ import socket
 import sys
 import threading
 
+import sqlite3
 
 SERVER_NAME = "STOMP_PYTHON_SQL_SERVER"  # DO NOT CHANGE!
 DB_FILE = "stomp_server.db"              # DO NOT CHANGE!
@@ -29,16 +30,100 @@ def recv_null_terminated(sock: socket.socket) -> str:
             return msg.decode("utf-8", errors="replace")
 
 
+# def init_database():
+#     dbcon = sqlite3.connect(DB_FILE)
+#     with dbcon:
+#         cursor = dbcon.cursor()
+#         cursor.execute("""
+#             CREATE TABLE IF NOT EXISTS Users (
+#                 UserName TEXT PRIMARY KEY,
+#                 Passcode TEXT NOT NULL
+#             )
+#         """)
+        
+#         cursor.execute("""
+#             CREATE TABLE IF NOT EXISTS LoginTimestamps (
+#                 Username TEXT NOT NULL,
+#                 Login DATETIME NOT NULL,
+#                 Logout DATETIME,
+#                 PRIMARY KEY (Username, Login),
+#                 FOREIGN KEY (Username) REFERENCES Users(UserName)
+#             )
+#         """)
+        
+#         cursor.execute("""
+#             CREATE TABLE IF NOT EXISTS Files (
+#                 FileName TEXT NOT NULL,
+#                 UserName TEXT NOT NULL,
+#                 DateTime DATETIME,
+#                 GameChannel TEXT,
+#                 PRIMARY KEY (FileName, UserName),
+#                 FOREIGN KEY (UserName) REFERENCES Users(UserName)
+#             )
+#         """)
+
 def init_database():
-    pass
+    dbcon = sqlite3.connect(DB_FILE)
+    with dbcon:
+        cursor = dbcon.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Users (
+                UserName TEXT PRIMARY KEY,
+                Passcode TEXT NOT NULL,
+                registration_date DATETIME NOT NULL
+            )
+        """)
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS login_history (
+                username TEXT NOT NULL,
+                login_time DATETIME NOT NULL,
+                logout_time DATETIME,
+                PRIMARY KEY (username, login_time),
+                FOREIGN KEY (username) REFERENCES Users(UserName)
+            )
+        """)
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS file_tracking (
+                username TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                upload_time DATETIME,
+                game_channel TEXT,
+                PRIMARY KEY (username, filename),
+                FOREIGN KEY (username) REFERENCES Users(UserName)
+            )
+        """)
 
 
 def execute_sql_command(sql_command: str) -> str:
-    return "done"
+    try:
+        dbcon = sqlite3.connect(DB_FILE)
+        with dbcon:
+            cursor = dbcon.cursor()
+            cursor.execute(sql_command)
+        return "done"
+    except sqlite3.Error as e:
+        return f"error: {e}"
 
 
 def execute_sql_query(sql_query: str) -> str:
-    return "done"
+    try:
+        dbcon = sqlite3.connect(DB_FILE)
+        with dbcon:
+            cursor = dbcon.cursor()
+            cursor.execute(sql_query)
+            results = cursor.fetchall()
+            
+        response = ""
+        for row in results:
+            row_str = " ".join(str(item) for item in row)
+            response += row_str + "\n"
+            
+        return response.strip()
+        
+    except sqlite3.Error as e:
+        return f"error: {e}"
 
 
 def handle_client(client_socket: socket.socket, addr):
@@ -50,10 +135,15 @@ def handle_client(client_socket: socket.socket, addr):
             if message == "":
                 break
 
-            print(f"[{SERVER_NAME}] Received:")
-            print(message)
+            command_type = message.strip().split(" ")[0].upper()
+            
+            response = ""
+            if command_type == "SELECT":
+                response = execute_sql_query(message)
+            else:
+                response = execute_sql_command(message)
 
-            client_socket.sendall(b"done\0")
+            client_socket.sendall(response.encode("utf-8") + b"\0")
 
     except Exception as e:
         print(f"[{SERVER_NAME}] Error handling client {addr}: {e}")

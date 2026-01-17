@@ -2,7 +2,15 @@
 #include <event.h>
 #include <fstream>
 
-StompProtocol::StompProtocol(ConnectionHandler & connectionHandler, std::mutex &mtx) : connectionHandler(connectionHandler), mtx(mtx) {}
+StompProtocol::StompProtocol(ConnectionHandler & connectionHandler) : connectionHandler(connectionHandler), 
+      topicToSubscriptionId(), 
+      subscriptionIdCounter(1), 
+      receiptIdCounter(1), 
+      disconnectReceiptId(-1), 
+      loggedOut(false), 
+      user(""), 
+      userToEvents() 
+{}
 
 void StompProtocol::readKeyBoard() {
     while (1) {
@@ -56,8 +64,6 @@ void StompProtocol::handleLogin(const std::string & line){
     size_t startPos = user.find(' ');
     std::string login = user.substr(0, startPos);
     std::string passcode = user.substr(startPos + 1);
-
-    // check against the DB later
 
     this->user = login;
 
@@ -150,7 +156,9 @@ void StompProtocol::handleSummary(const std::string & line){
         safePrint("Error opening file: " + fileName);
         return;
     }
-    std::vector<Event> events = userToEvents[userName];
+
+    std::vector<Event> events = getEventsList(userName);
+
     std::sort(events.begin(), events.end(), [](const Event & a, const Event & b) {
         return a.get_time() < b.get_time();
     });
@@ -230,7 +238,17 @@ void StompProtocol::readSocket() {
             std::string user = body.substr(body.find(' ') +1, body.find("\n") - body.find(' ') +1);
             body = body.substr(body.find("\n") +1);
             Event event(body);
-            userToEvents[user].push_back(event);
+            putEvent(user, event);
         }
     }
+}
+
+const std::vector<Event> StompProtocol::getEventsList(const std::string& userName) const{
+    std::lock_guard<std::mutex> lock(mtx);
+    return userToEvents.at(userName);
+}
+
+void StompProtocol::putEvent(const std::string & userName, const Event & event){
+    std::lock_guard<std::mutex> lock(mtx);
+    userToEvents[userName].push_back(event);
 }

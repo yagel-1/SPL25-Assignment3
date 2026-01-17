@@ -93,7 +93,7 @@ Event::Event(const std::string &frame_body) : team_a_name(""), team_b_name(""), 
     
 }
 
-std::map<std::string, std::string> parseStringToMap(std::string map){
+std::map<std::string, std::string> Event::parseStringToMap(std::string map){
     std::map<std::string, std::string> hashMap;
     std::string remain = map;
     while (remain.length() != 0){
