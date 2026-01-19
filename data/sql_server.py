@@ -30,38 +30,6 @@ def recv_null_terminated(sock: socket.socket) -> str:
             return msg.decode("utf-8", errors="replace")
 
 
-# def init_database():
-#     dbcon = sqlite3.connect(DB_FILE)
-#     with dbcon:
-#         cursor = dbcon.cursor()
-#         cursor.execute("""
-#             CREATE TABLE IF NOT EXISTS Users (
-#                 UserName TEXT PRIMARY KEY,
-#                 Passcode TEXT NOT NULL
-#             )
-#         """)
-        
-#         cursor.execute("""
-#             CREATE TABLE IF NOT EXISTS LoginTimestamps (
-#                 Username TEXT NOT NULL,
-#                 Login DATETIME NOT NULL,
-#                 Logout DATETIME,
-#                 PRIMARY KEY (Username, Login),
-#                 FOREIGN KEY (Username) REFERENCES Users(UserName)
-#             )
-#         """)
-        
-#         cursor.execute("""
-#             CREATE TABLE IF NOT EXISTS Files (
-#                 FileName TEXT NOT NULL,
-#                 UserName TEXT NOT NULL,
-#                 DateTime DATETIME,
-#                 GameChannel TEXT,
-#                 PRIMARY KEY (FileName, UserName),
-#                 FOREIGN KEY (UserName) REFERENCES Users(UserName)
-#             )
-#         """)
-
 def init_database():
     dbcon = sqlite3.connect(DB_FILE)
     with dbcon:
@@ -192,4 +160,5 @@ if __name__ == "__main__":
         except ValueError:
             print(f"Invalid port '{raw_port}', falling back to default {port}")
 
+    init_database()
     start_server(port=port)

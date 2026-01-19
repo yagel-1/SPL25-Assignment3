@@ -12,23 +12,33 @@ public class Frame {
         parse(msg);
     }
 
-    public void parse(String msg){
-        String[] lines = msg.split("\n");
-        command = lines[0];
-        int i = 1;
-        while (!lines[i].equals("")){
-            String[] header = lines[i].split(":", 2);
-            headers.put(header[0], header[1]);
-            i++;
-        }
-        i++;
+    private void parse(String msg){
+        int len = msg.length();
+        int headerEnd = msg.indexOf("\n\n");
 
-        StringBuilder body = new StringBuilder();
-        while (i<lines.length){
-            body.append(lines[i]);
-            i++;
+        if (headerEnd == -1) {
+            headerEnd = len;
         }
-        frameBody = (body.toString() == "") ? null : body.toString();
+
+        String headersPart = msg.substring(0, headerEnd);
+        
+        if (headerEnd + 2 < len) {
+            frameBody = msg.substring(headerEnd + 2);
+        }
+
+        String[] lines = headersPart.split("\n");
+        if (lines.length > 0) {
+            command = lines[0];
+            for (int i = 1; i < lines.length; i++) {
+                String line = lines[i];
+                int colonIndex = line.indexOf(':');
+                if (colonIndex != -1) {
+                    String key = line.substring(0, colonIndex);
+                    String value = line.substring(colonIndex + 1);
+                    headers.put(key, value);
+                }
+            }
+        }
     }
     
     @Override
@@ -45,7 +55,6 @@ public class Frame {
         if (frameBody != null){
             ret.append(frameBody);
         }
-        ret.append("\u0000");
         return ret.toString();
     }
 

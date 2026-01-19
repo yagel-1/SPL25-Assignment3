@@ -66,31 +66,6 @@ public class Database {
 		connectionsIdMap.putIfAbsent(user.getConnectionId(), user);
 	}
 
-	// public LoginStatus login(int connectionId, String username, String password) {
-	// 	if (connectionsIdMap.containsKey(connectionId)) {
-	// 		return LoginStatus.CLIENT_ALREADY_CONNECTED;
-	// 	}
-	// 	if (addNewUserCase(connectionId, username, password)) {
-	// 		// Log new user registration in SQL
-	// 		String sql = String.format(
-	// 			"INSERT INTO users (username, password, registration_date) VALUES ('%s', '%s', datetime('now'))",
-	// 			escapeSql(username), escapeSql(password)
-	// 		);
-	// 		executeSQL(sql);
-			
-	// 		// Log login
-	// 		logLogin(username);
-	// 		return LoginStatus.ADDED_NEW_USER;
-	// 	} else {
-	// 		LoginStatus status = userExistsCase(connectionId, username, password);
-	// 		if (status == LoginStatus.LOGGED_IN_SUCCESSFULLY) {
-	// 			// Log successful login in SQL
-	// 			logLogin(username);
-	// 		}
-	// 		return status;
-	// 	}
-	// }
-
 	public LoginStatus login(int connectionId, String username, String password) {
 		if (connectionsIdMap.containsKey(connectionId)) {
 			return LoginStatus.CLIENT_ALREADY_CONNECTED;
@@ -104,26 +79,19 @@ public class Database {
 			if (addNewUserCase(connectionId, username, password)) {
 				// Log new user registration in SQL
 				String sql = String.format(
-					"INSERT INTO users (username, password, registration_date) VALUES ('%s', '%s', datetime('now'))",
+					"INSERT INTO users (username, passcode, registration_date) VALUES ('%s', '%s', datetime('now'))",
 					escapeSql(username), escapeSql(password)
 				);
 				executeSQL(sql);
 				
-				// Log login
 				logLogin(username);
 				return LoginStatus.ADDED_NEW_USER;
-			} else {
-				LoginStatus status = userExistsCase(connectionId, username, password);
-				if (status == LoginStatus.LOGGED_IN_SUCCESSFULLY) {
-					// Log successful login in SQL
-					logLogin(username);
-				}
-				return status;
 			}
 		} 
 		
 		return userExistsCase(connectionId, username, password);
 	}
+
 	private boolean loadUserFromDB(String username) {
 		String res = executeSQL("SELECT Passcode FROM Users WHERE UserName='" + escapeSql(username) + "'");
 		

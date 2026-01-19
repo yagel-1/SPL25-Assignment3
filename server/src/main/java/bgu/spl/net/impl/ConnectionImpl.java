@@ -1,5 +1,6 @@
 package bgu.spl.net.impl;
 
+import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -33,7 +34,13 @@ public class ConnectionImpl<T> implements Connections<T> {
     }
 
     public void disconnect(int connectionId){
-        clients.remove(connectionId);
+        ConnectionHandler<T> handler = clients.get(connectionId);
+        if (handler != null) {
+            try {
+                handler.close(); 
+            } catch (IOException e) {}
+            clients.remove(connectionId);
+        }
         removeChannel(connectionId);
     }
 
@@ -101,5 +108,13 @@ public class ConnectionImpl<T> implements Connections<T> {
             }
         }
         
+    }
+
+    public boolean isSubscribed(int connectionId, String channel){
+        return clientChannels.get(connectionId).contains(channel);
+    }
+
+    public ConcurrentHashMap<Integer, Integer> getChannelsToId(String channel){
+        return channelsToId.get(channel);
     }
 }

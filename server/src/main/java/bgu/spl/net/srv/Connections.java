@@ -1,6 +1,7 @@
 package bgu.spl.net.srv;
 
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
 
 public interface Connections<T> {
 
@@ -15,4 +16,8 @@ public interface Connections<T> {
     public void subscribe(String channel, int connectionId, int subscriptionId);
 
     public void unSubscribe(int connectionId, int subscriptionId);
+
+    public boolean isSubscribed(int connectionId, String channel);
+
+    public ConcurrentHashMap<Integer, Integer> getChannelsToId(String channel);
 }

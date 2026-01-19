@@ -102,7 +102,12 @@ bool ConnectionHandler::sendFrameAscii(const std::string &frame, char delimiter)
 void ConnectionHandler::close() {
 	try {
 		socket_.close();
+		this->open = false;
 	} catch (...) {
 		std::cout << "closing failed: connection already closed" << std::endl;
 	}
+}
+
+bool ConnectionHandler::isOpen(){
+	return open;
 }

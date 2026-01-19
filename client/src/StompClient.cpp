@@ -20,7 +20,12 @@ bool validLogin(const std::string & line, std::string & host, short & port) {
 		size_t posHostAndPort = hostAndPort.find(':');
 		if (posHostAndPort != std::string::npos) {
 			host = hostAndPort.substr(0, posHostAndPort);
-			port = std::stoi(hostAndPort.substr(posHostAndPort + 1));
+			try {
+				port = std::stoi(hostAndPort.substr(posHostAndPort + 1));
+			}
+			catch (...){
+				std::cout << "Invalid input, can't pars to integer\n Please use: login <host:port> <user> <passcode>" << std::endl;
+			}
 		}
 		else {
 			return false;
@@ -36,34 +41,31 @@ bool validLogin(const std::string & line, std::string & host, short & port) {
 }
 
 int main (int argc, char *argv[]) {
-	std::string host;
-	short port;
-	std::string line;
-    while (1) {
+	while (1) {
+		std::string host;
+		short port;
+		std::string line;
         const short bufsize = 1024;
         char buf[bufsize];
         std::cin.getline(buf, bufsize);
 		line = std::string(buf);
-		if (validLogin(line, host, port)) {
-			break;
-		}
-		else{
+		if (!validLogin(line, host, port)) {
 			std::cout << "Invalid login command. Please use: login <host:port> <user> <passcode>" << std::endl;
+			continue;
 		}
-	}
     
-    ConnectionHandler connectionHandler(host, port);
-    if (!connectionHandler.connect()) {
-        std::cerr << "Cannot connect to " << host << ":" << port << std::endl;
-        return 1;
-    }
-	StompProtocol stompProtocol(connectionHandler);
-	stompProtocol.handleLogin(line);
-	std::thread threadKeyboard(&StompProtocol::readKeyBoard, std::ref(stompProtocol));
-	std::thread threadSocket(&StompProtocol::readSocket, std::ref(stompProtocol));
-	
-    threadKeyboard.join();
-	threadSocket.join();
-
+		ConnectionHandler connectionHandler(host, port);
+		if (!connectionHandler.connect()) {
+			std::cerr << "Could not connect to server" << std::endl;
+			continue;
+		}
+		StompProtocol stompProtocol(connectionHandler);
+		stompProtocol.handleLogin(line);
+		std::thread threadKeyboard(&StompProtocol::readKeyBoard, std::ref(stompProtocol));
+		std::thread threadSocket(&StompProtocol::readSocket, std::ref(stompProtocol));
+		
+		threadKeyboard.join();
+		threadSocket.join();
+	}
 	return 0;
 }

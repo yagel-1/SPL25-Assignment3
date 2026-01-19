@@ -11,10 +11,11 @@ private:
     ConnectionHandler &connectionHandler;
     mutable std::mutex mtx;
     std::map<std::string, int> topicToSubscriptionId;
-    int subscriptionIdCounter = 1;
-    int receiptIdCounter = 1;
-    int disconnectReceiptId = -1;
-    bool loggedOut = false;
+    int subscriptionIdCounter;
+    int receiptIdCounter;
+    int disconnectReceiptId;
+    bool loggedOut;
+    bool socketClose;
 
     std::string user;
     std::map<std::string, std::vector<Event>> userToEvents;
@@ -27,6 +28,7 @@ private:
     void safePrint(const std::string& msg);
     const std::vector<Event> getEventsList(const std::string & userName) const;
     void putEvent(const std::string & userName, const Event & event);
+    bool sendToHandler(std::string msg);
 
 public:
     StompProtocol(ConnectionHandler & connectionHandler);

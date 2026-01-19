@@ -64,43 +64,85 @@ const std::string &Event::get_discription() const
 Event::Event(const std::string &frame_body) : team_a_name(""), team_b_name(""), name(""), time(0), game_updates(), team_a_updates(), team_b_updates(), description("")
 {
     size_t posTeamA = frame_body.find("team a:");
-    team_a_name = frame_body.substr(posTeamA + 2, frame_body.find('\n') - posTeamA + 2);
-
     size_t posTeamB = frame_body.find("team b:");
-    team_b_name = frame_body.substr(posTeamB + 2, frame_body.find('\n', posTeamB) - posTeamB + 2);
-
     size_t posEventName = frame_body.find("event name:");
-    name = frame_body.substr(posEventName + 2, frame_body.find('\n', posEventName) - posEventName + 2);
-
-    size_t posTime = frame_body.find("time");
-    time = std::stoi(frame_body.substr(posTime + 2, frame_body.find('\n', posTime) - posTime + 2));
-
-    size_t posGeneralUp = frame_body.find("general game update:");
+    size_t posTime = frame_body.find("time:");
+    size_t posGeneralUp = frame_body.find("general game updates:");
     size_t posTeamAUp = frame_body.find("team a updates:");
-    std::string generalUp = frame_body.substr(posGeneralUp + 1, posTeamAUp - posGeneralUp + 1);
-    game_updates = parseStringToMap(generalUp);
-
     size_t posTeamBUp = frame_body.find("team b updates:");
-    std::string teamAUp = frame_body.substr(posTeamAUp + 1, posTeamBUp - posTeamAUp + 1);
-    team_a_updates = parseStringToMap(teamAUp);
-
     size_t posDesc = frame_body.find("description:");
-    std::string teamBUp = frame_body.substr(posTeamBUp + 1, posDesc - posTeamBUp + 1);
-    team_b_updates = parseStringToMap(teamBUp);
 
-    description = frame_body.substr(posDesc + 1, frame_body.find('\0') - posDesc + 1);
+    if (posTeamA != std::string::npos) {
+        team_a_name = frame_body.substr(posTeamA + 7, frame_body.find('\n', posTeamA) - (posTeamA + 7));
+        if (!team_a_name.empty() && team_a_name[0] == ' ') team_a_name.erase(0, 1);
+        if (!team_a_name.empty() && team_a_name.back() == '\r') team_a_name.pop_back();
+    }
     
+    if (posTeamB != std::string::npos) {
+        team_b_name = frame_body.substr(posTeamB + 7, frame_body.find('\n', posTeamB) - (posTeamB + 7));
+        if (!team_b_name.empty() && team_b_name[0] == ' ') team_b_name.erase(0, 1);
+        if (!team_b_name.empty() && team_b_name.back() == '\r') team_b_name.pop_back();
+    }
     
+    if (posEventName != std::string::npos) {
+        name = frame_body.substr(posEventName + 11, frame_body.find('\n', posEventName) - (posEventName + 11));
+        if (!name.empty() && name[0] == ' ') name.erase(0, 1);
+        if (!name.empty() && name.back() == '\r') name.pop_back();
+    }
+    
+    if (posTime != std::string::npos) {
+        std::string timeStr = frame_body.substr(posTime + 5, frame_body.find('\n', posTime) - (posTime + 5));
+        try {
+            time = std::stoi(timeStr);
+        } catch(...) {
+            time = 0; 
+        }
+    }
+
+    if (posGeneralUp != std::string::npos && posTeamAUp != std::string::npos) {
+        std::string content = frame_body.substr(posGeneralUp + 21, posTeamAUp - (posGeneralUp + 21));
+        game_updates = parseStringToMap(content);
+    }
+
+    if (posTeamAUp != std::string::npos && posTeamBUp != std::string::npos) {
+        std::string content = frame_body.substr(posTeamAUp + 15, posTeamBUp - (posTeamAUp + 15));
+        team_a_updates = parseStringToMap(content);
+    }
+
+    if (posTeamBUp != std::string::npos && posDesc != std::string::npos) {
+        std::string content = frame_body.substr(posTeamBUp + 15, posDesc - (posTeamBUp + 15));
+        team_b_updates = parseStringToMap(content);
+    }
+
+    if (posDesc != std::string::npos) {
+        description = frame_body.substr(posDesc + 12); 
+        while (!description.empty() && (description[0] == ' ' || description[0] == '\n' || description[0] == '\r')) {
+            description.erase(0, 1);
+        }
+    }
 }
 
 std::map<std::string, std::string> Event::parseStringToMap(std::string map){
     std::map<std::string, std::string> hashMap;
     std::string remain = map;
-    while (remain.length() != 0){
-        size_t posKey = remain.find(':');
-        std::string key = remain.substr(4, posKey - 4);
-        std::string value = remain.substr(posKey + 2, remain.find('\n') - posKey + 2);
+    
+    while (!remain.empty() && remain[0] == '\n') remain.erase(0, 1);
+
+    while (remain.length() > 0){
+        size_t posColon = remain.find(':');
+        if (posColon == std::string::npos) break;
+
+        std::string key = remain.substr(0, posColon); 
+        
+        size_t endLine = remain.find('\n');
+        if (endLine == std::string::npos) endLine = remain.length();
+        
+        std::string value = remain.substr(posColon + 1, endLine - (posColon + 1));
+        if (!value.empty() && value[0] == ' ') value.erase(0, 1);
+
         hashMap[key] = value;
+        
+        if (remain.find('\n') == std::string::npos) break;
         remain = remain.substr(remain.find('\n') + 1);
     }
     return hashMap;

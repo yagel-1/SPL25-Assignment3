@@ -33,10 +33,8 @@ public class StompEncoderDecoder implements MessageEncoderDecoder<Frame>{
     }
 
     private Frame popString() {
-        String msg = new String(bytes);
-        Frame ret = new Frame(msg);
-        bytes = new byte[1 << 10];
+        String msg = new String(bytes, 0, len, StandardCharsets.UTF_8);
         len = 0;
-        return ret;
+        return new Frame(msg);
     }
 }
