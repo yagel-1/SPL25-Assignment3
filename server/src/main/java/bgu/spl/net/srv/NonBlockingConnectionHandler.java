@@ -111,11 +111,12 @@ public class NonBlockingConnectionHandler<T> implements ConnectionHandler<T> {
             } catch (IOException ex) {
                 ex.printStackTrace();
                 close();
+                return;
             }
         }
 
         if (writeQueue.isEmpty()) {
-            if (protocol.shouldTerminate()) close();
+            if (protocol.shouldTerminate()) connections.disconnect(connectionId);
             else reactor.updateInterestedOps(chan, SelectionKey.OP_READ);
         }
     }

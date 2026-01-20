@@ -3,6 +3,7 @@
 #include "../include/ConnectionHandler.h"
 #include <event.h>
 #include <mutex>
+#include <atomic>
 
 // TODO: implement the STOMP protocol
 class StompProtocol
@@ -14,11 +15,11 @@ private:
     int subscriptionIdCounter;
     int receiptIdCounter;
     int disconnectReceiptId;
-    bool loggedOut;
-    bool socketClose;
-
+    std::atomic<bool> loggedIn;
+    std::atomic<bool> socketClose;
     std::string user;
     std::map<std::string, std::vector<Event>> userToEvents;
+    std::string unUsedInput;
 
     void handleJoin(const std::string & line);   
     void handleExit(const std::string & line);   
@@ -35,7 +36,8 @@ public:
     void handleLogin(const std::string & line);
     void readKeyBoard();
     void readSocket();
-
     const std::string &getUser() const;
+    bool hasUnUsedInput() const;
+    const std::string &getUnUsedInput() const;
 };
 

@@ -1,7 +1,6 @@
 package bgu.spl.net.srv;
 
 import bgu.spl.net.api.MessageEncoderDecoder;
-import bgu.spl.net.api.MessagingProtocol;
 import bgu.spl.net.api.StompMessagingProtocol;
 import bgu.spl.net.impl.ConnectionImpl;
 
@@ -39,11 +38,11 @@ public abstract class BaseServer<T> implements Server<T> {
 
             this.sock = serverSock; //just to be able to close
 
-            int connectionId = connectionIdCounter++;
-
             while (!Thread.currentThread().isInterrupted()) {
 
                 Socket clientSock = serverSock.accept();
+
+                int connectionId = connectionIdCounter++;
 
                 BlockingConnectionHandler<T> handler = new BlockingConnectionHandler<>(
                         clientSock,

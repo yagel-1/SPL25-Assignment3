@@ -41,14 +41,23 @@ bool validLogin(const std::string & line, std::string & host, short & port) {
 }
 
 int main (int argc, char *argv[]) {
+	std::string nextLine = "";
+
 	while (1) {
 		std::string host;
 		short port;
 		std::string line;
-        const short bufsize = 1024;
-        char buf[bufsize];
-        std::cin.getline(buf, bufsize);
-		line = std::string(buf);
+
+		if (nextLine.empty()) {
+			const short bufsize = 1024;
+			char buf[bufsize];
+			std::cin.getline(buf, bufsize);
+			line = std::string(buf);
+		} else {
+			line = nextLine;
+			nextLine = "";
+		}
+
 		if (!validLogin(line, host, port)) {
 			std::cout << "Invalid login command. Please use: login <host:port> <user> <passcode>" << std::endl;
 			continue;
@@ -66,6 +75,10 @@ int main (int argc, char *argv[]) {
 		
 		threadKeyboard.join();
 		threadSocket.join();
+
+		if (stompProtocol.hasUnUsedInput()) {
+			nextLine = stompProtocol.getUnUsedInput();
+		}
 	}
 	return 0;
 }

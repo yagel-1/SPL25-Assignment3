@@ -9,11 +9,11 @@ StompProtocol::StompProtocol(ConnectionHandler & connectionHandler) :
       subscriptionIdCounter(1), 
       receiptIdCounter(1), 
       disconnectReceiptId(-1), 
-      loggedOut(false),
+      loggedIn(true),
       socketClose(false),
       user(""), 
-      userToEvents()
-      
+      userToEvents(),
+      unUsedInput("")
 {}
 
 void StompProtocol::readKeyBoard() {
@@ -25,29 +25,40 @@ void StompProtocol::readKeyBoard() {
         char buf[bufsize];
         std::cin.getline(buf, bufsize);
 		std::string line(buf);
+
+        if (socketClose){
+            unUsedInput = line;
+            break;
+        }
+
         size_t pos = line.find(' ');
         std::string command = (pos == std::string::npos) ? line : line.substr(0, pos);
-        if (command == "login" && !loggedOut){
-            handleLogin(line);
+        if (command == "login"){
+            if (loggedIn){
+                safePrint("The client is already logged in, log out before trying again");
+            }
+            else{
+                handleLogin(line);
+            }
         }
-        else if (command == "join" && !loggedOut) {
+        else if (command == "join" && loggedIn) {
             handleJoin(line);
         } 
-        else if (command == "exit" && !loggedOut) {
+        else if (command == "exit" && loggedIn) {
             handleExit(line);
         } 
-        else if (command == "report" && !loggedOut) {
+        else if (command == "report" && loggedIn) {
             handleReport(line);
         }
-        else if (command == "summary" && !loggedOut) {
+        else if (command == "summary" && loggedIn) {
             handleSummary(line);
         }
-        else if (command == "logout" && !loggedOut){
+        else if (command == "logout" && loggedIn){
             handleLogOut();
             return;
         }
         else{
-            if(loggedOut){
+            if(!loggedIn){
                 safePrint("You are logged out. No further commands can be processed.");
                 break;
             }
@@ -83,7 +94,7 @@ void StompProtocol::handleLogin(const std::string & line){
     connectMsg += "\n\n";
     bool sent = sendToHandler(connectMsg);
     if (!sent) {
-        loggedOut = true;
+        loggedIn = false;
         return;
     }
 }
@@ -102,7 +113,7 @@ void StompProtocol::handleJoin(const std::string & line){
     receiptIdCounter++;
     bool sent = sendToHandler(subscribeMsg);
     if (!sent) {
-        loggedOut = true;
+        loggedIn = false;
         return;
     }
 }   
@@ -125,7 +136,7 @@ void StompProtocol::handleExit(const std::string & line){
     receiptIdCounter++;
     bool sent = sendToHandler(unsubscribeMsg);
     if (!sent) {
-        loggedOut = true;
+        loggedIn = false;
         return;
     }
 }
@@ -143,7 +154,8 @@ void StompProtocol::handleReport(const std::string & line){
 
         for (const Event & event : namesAndEvents.events) {
             std::string sendEventMsg = "SEND\n";
-            sendEventMsg += "destination:/" + teamAName + "_" + teamBName + "\n\n";
+            sendEventMsg += "destination:/" + teamAName + "_" + teamBName + "\n";
+            sendEventMsg += "file: " + line.substr(line.find_last_of('/') + 1, line.find('.') - line.find_last_of('/') - 1) + "\n\n";
             sendEventMsg += "user: " + getUser() + "\n";
             sendEventMsg += "team a: " + event.get_team_a_name() + "\n";
             sendEventMsg += "team b: " + event.get_team_b_name() + "\n";
@@ -169,7 +181,7 @@ void StompProtocol::handleReport(const std::string & line){
 
             bool sent = sendToHandler(sendEventMsg);
             if (!sent) {
-                loggedOut = true;
+                loggedIn = false;
                 break;
             }
         }
@@ -251,30 +263,29 @@ void StompProtocol::handleSummary(const std::string & line){
 }
 
 void StompProtocol::handleLogOut(){
-    loggedOut = true;
+    loggedIn = false;
     std::string disconnectMsg = "DISCONNECT\nreceipt:" + std::to_string(receiptIdCounter) + "\n\n";
     disconnectReceiptId = receiptIdCounter;
     receiptIdCounter++;
     bool sent = sendToHandler(disconnectMsg);
     if (!sent) {
-        loggedOut = true;
+        loggedIn = false;
+        socketClose = true;
         return;
     }
 }
 
 void StompProtocol::readSocket() {
-    while (!loggedOut) {
+    while (loggedIn) {
         std::string frame;
         if (!connectionHandler.getFrameAscii(frame, '\0')) {
             socketClose = true;
-            loggedOut = true;
+            loggedIn = false;
             break;
         }
         if (frame.empty()){
             continue;
         }
-
-        safePrint(frame);
         
         if(frame.substr(0,frame.find('\n')) == "CONNECTED"){
             safePrint("Login successful");
@@ -286,12 +297,16 @@ void StompProtocol::readSocket() {
             if (receiptId == disconnectReceiptId) {
                 std::lock_guard<std::mutex> lock(mtx);
                 connectionHandler.close();
+                socketClose = true;
                 break;
             }   
         }
         if(frame.substr(0,frame.find('\n')) == "ERROR"){
+            safePrint(frame);
             std::lock_guard<std::mutex> lock(mtx);
+            loggedIn = false;
             connectionHandler.close();
+            socketClose = true;
             break;
         }
         if(frame.substr(0,frame.find('\n')) == "MESSAGE"){
@@ -328,5 +343,14 @@ bool StompProtocol::sendToHandler(std::string msg){
     }
     else{
         socketClose = true;
+        return false;
     }
+}
+
+bool StompProtocol::hasUnUsedInput() const {
+    return !unUsedInput.empty();
+}
+
+const std::string &StompProtocol::getUnUsedInput() const {
+    return unUsedInput;
 }

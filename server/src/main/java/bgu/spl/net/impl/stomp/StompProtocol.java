@@ -1,6 +1,8 @@
 package bgu.spl.net.impl.stomp;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import bgu.spl.net.impl.data.LoginStatus;
 
 import bgu.spl.net.api.StompMessagingProtocol;
@@ -11,18 +13,17 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
     private int connectionId;
     private Connections<Frame> connection;
     private boolean shouldTerminate = false;
-    private int counterMsgId = 1;
+    private static AtomicInteger counterMsgId = new AtomicInteger(1);
 
-    private Database database= Database.getInstance();
+    private Database database;
 
     public void start(int connectionId, Connections<Frame> connections){
         this.connectionId=connectionId;
         this.connection=connections;
-
+        this.database=Database.getInstance();
     }
 
     public void process(Frame message){
-        System.out.println(message);
         try{
             switch(message.getCommand()){
                 case "CONNECT":
@@ -107,44 +108,63 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
     private void handleSubscribe(Frame msg){
         String destination = msg.getHeaders().get("destination");
         if (destination == null){
-            handleError(msg, "malformed frame rceived", "Did not contain a destination header,\nwhich is REQUIRED for message propagation.");
+            handleError(msg, "malformed frame received", "Did not contain a destination header,\nwhich is REQUIRED for message propagation.");
+        }
+        if (destination.startsWith("/")) {
+            destination = destination.substring(1); 
         }
         String id = msg.getHeaders().get("id");
         if (id == null){
-            handleError(msg, "malformed frame rceived", "Did not contain a id header,\nwhich is REQUIRED for message propagation.");
+            handleError(msg, "malformed frame received", "Did not contain a id header,\nwhich is REQUIRED for message propagation.");
             return;
         }
         connection.subscribe(destination, connectionId, Integer.parseInt(id));
-
+        String receipt = msg.getHeaders().get("receipt");
+        if (receipt != null) {
+            Frame receiptFrame = new Frame("RECEIPT\nreceipt-id:" + receipt + "\n\n\u0000");
+            connection.send(connectionId, receiptFrame);
+        }
     }
 
     private void handleUnsubscribe(Frame msg){
         String id = msg.getHeaders().get("id");
         if (id == null){
-            handleError(msg, "malformed frame rceived", "Did not contain a id header,\nwhich is REQUIRED for message propagation.");
+            handleError(msg, "malformed frame received", "Did not contain a id header,\nwhich is REQUIRED for message propagation.");
             return;
         }
         connection.unSubscribe(connectionId, Integer.parseInt(id));
+        String receipt = msg.getHeaders().get("receipt");
+        if (receipt != null) {
+            Frame receiptFrame = new Frame("RECEIPT\nreceipt-id:" + receipt + "\n\n\u0000");
+            connection.send(connectionId, receiptFrame);
+        }
     }
 
     private void handleSend(Frame msg){
         String destination = msg.getHeaders().get("destination");
-        destination = destination.substring(1);
         if (destination == null){
-            handleError(msg, "malformed frame rceived", "Did not contain a destination header,\nwhich is REQUIRED for message propagation.");
+            handleError(msg, "malformed frame received", "Did not contain a destination header,\nwhich is REQUIRED for message propagation.");
+            return;
+        }
+        if (destination.startsWith("/")) {
+            destination = destination.substring(1); 
+        }
+        String fileName = msg.getHeaders().get("file");
+        if (fileName == null){
+            handleError(msg, "malformed frame received", "Did not contain a file header,\nwhich is REQUIRED for message propagation.");
             return;
         }
         if (!connection.isSubscribed(connectionId, destination)){
-            handleError(msg, "not subscribed", "The user try to send message to channel he not subscribed.\nwhich is REQUIRED for message propagation.");
+            handleError(msg, "not subscribed", "The user try to send message to channel he not subscribed.");
             return;
         }
         String body = msg.getFrameBody();
         if (body == null){
-            handleError(msg, "malformed frame rceived", "Did not contain a frame body,\nwhich is REQUIRED for message propagation.");
+            handleError(msg, "malformed frame received", "Did not contain a frame body,\nwhich is REQUIRED for message propagation.");
             return;
         }
         String userName = body.substring(body.indexOf(' ') + 1, body.indexOf('\n'));
-        database.trackFileUpload(userName, destination, destination);
+        database.trackFileUpload(userName, fileName, destination);
 
         ConcurrentHashMap<Integer, Integer> conSubId = connection.getChannelsToId(destination);
         for (int conId : conSubId.keySet()){
@@ -156,12 +176,11 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
     private void handleDisconnect(Frame msg){
         String receipt = msg.getHeaders().get("receipt");
         if (receipt == null){
-            handleError(msg, "malformed frame rceived", "Did not contain a receipt header,\nwhich is REQUIRED for message propagation.");
+            handleError(msg, "malformed frame received", "Did not contain a receipt header,\nwhich is REQUIRED for message propagation.");
             return;
         }
         Frame receiptFrame = new Frame("RECEIPT\nreceipt-id:" + receipt + "\n\n\u0000");
         connection.send(connectionId, receiptFrame);
-        connection.disconnect(connectionId);
         shouldTerminate = true;
         database.logout(connectionId);
     }
@@ -189,17 +208,14 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
 
         Frame errorFrame = new Frame(builder.toString());
         
-        shouldTerminate = true;
-        connection.disconnect(connectionId);
         database.logout(connectionId);
-
-        connection.send(connectionId, errorFrame);
+        connection.send(connectionId, errorFrame); 
+        shouldTerminate = true;
     }
 
     private Frame createMsg(Frame msg, int subId){
         String Id = "" + subId;
-        String msgId = "" + counterMsgId;
-        counterMsgId++;
+        String msgId = "" + counterMsgId.getAndIncrement();
         String destination = msg.getHeaders().get("destination");
         String body = msg.getFrameBody();
         Frame frameToSend = new Frame("MESSAGE\nsubscription:" + Id + "\nmessage-id:" + msgId + "\ndestination:" + destination + "\n\n" + body + "\u0000");

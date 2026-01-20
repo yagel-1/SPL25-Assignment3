@@ -34,12 +34,11 @@ public class ConnectionImpl<T> implements Connections<T> {
     }
 
     public void disconnect(int connectionId){
-        ConnectionHandler<T> handler = clients.get(connectionId);
+        ConnectionHandler<T> handler = clients.remove(connectionId);
         if (handler != null) {
             try {
                 handler.close(); 
             } catch (IOException e) {}
-            clients.remove(connectionId);
         }
         removeChannel(connectionId);
     }

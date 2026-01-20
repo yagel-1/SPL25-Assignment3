@@ -1,21 +1,36 @@
 package bgu.spl.net.impl.stomp;
 
+import bgu.spl.net.impl.data.Database;
 import bgu.spl.net.srv.Server;
 
 public class StompServer {
 
     public static void main(String[] args) {
-        Server.threadPerClient(
-                7777, //port
-                () -> new StompProtocol(), //protocol factory
-                StompEncoderDecoder::new //message encoder decoder factory
-        ).serve();
+        Database.getInstance().resetAllLogins(); // Initialize the singleton Database instance
+        
+        if (args.length < 2) {
+            System.out.println("Usage: StompServer <port> <tpc/reactor>");
+            return;
+        }
 
-        // Server.reactor(
-        //         Runtime.getRuntime().availableProcessors(),
-        //         7777, //port
-        //         () -> new EchoProtocol<>(), //protocol factory
-        //         LineMessageEncoderDecoder::new //message encoder decoder factory
-        // ).serve();
+        int port = Integer.parseInt(args[0]);
+        String mode = args[1];
+
+        if (mode.equals("tpc")) {
+            Server.threadPerClient(
+                    port,
+                    () -> new StompProtocol(),
+                    () -> new StompEncoderDecoder()
+            ).serve();
+        } else if (mode.equals("reactor")) {
+            Server.reactor(
+                    Runtime.getRuntime().availableProcessors(),
+                    port,
+                    () -> new StompProtocol(),
+                    () -> new StompEncoderDecoder()
+            ).serve();
+        } else {
+            System.out.println("Server mode must be 'tpc' or 'reactor'");
+        }
     }
 }

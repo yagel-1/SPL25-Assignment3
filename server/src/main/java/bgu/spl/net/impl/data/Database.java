@@ -124,6 +124,9 @@ public class Database {
 				user.login();
 				user.setConnectionId(connectionId);
 				connectionsIdMap.put(connectionId, user);
+
+				logLogin(username);
+				
 				return LoginStatus.LOGGED_IN_SUCCESSFULLY;
 			}
 		}
@@ -260,6 +263,13 @@ private String repeat(String str, int times) {
 		sb.append(str);
 	}
 	return sb.toString();
+}
+
+public void resetAllLogins() {
+    connectionsIdMap.clear();
+    for (User user : userMap.values()) {
+        user.logout();
+    }
 }
 
 private static class Instance {

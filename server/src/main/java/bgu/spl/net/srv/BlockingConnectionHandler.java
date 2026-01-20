@@ -1,7 +1,6 @@
 package bgu.spl.net.srv;
 
 import bgu.spl.net.api.MessageEncoderDecoder;
-import bgu.spl.net.api.MessagingProtocol;
 import bgu.spl.net.api.StompMessagingProtocol;
 import bgu.spl.net.impl.ConnectionImpl;
 
@@ -52,14 +51,11 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
                     protocol.process(nextMessage);
                 }
             }
-            
         } catch (IOException ex) {
             ex.printStackTrace();
         }
         finally {
-            try {
-                close();
-            } catch (IOException ex) {}
+            connections.disconnect(connectionId);
         }
 
     }
