@@ -90,6 +90,11 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
             
             Frame connectedFrame = new Frame("CONNECTED\nversion:1.2\n\n\u0000");
             connection.send(connectionId, connectedFrame);
+            String receipt = msg.getHeaders().get("receipt");
+            if (receipt != null) {
+                Frame receiptFrame = new Frame("RECEIPT\nreceipt-id:" + receipt + "\n\n\u0000");
+                connection.send(connectionId, receiptFrame);
+            }
             
         } else if (status == LoginStatus.WRONG_PASSWORD) {
             handleError(msg, "Wrong password", "Password does not match the user");
@@ -170,6 +175,11 @@ public class StompProtocol implements StompMessagingProtocol<Frame>{
         for (int conId : conSubId.keySet()){
             Frame frameToSend = createMsg(msg, conSubId.get(conId));
             connection.send(conId, frameToSend);
+            String receipt = msg.getHeaders().get("receipt");
+            if (receipt != null) {
+                Frame receiptFrame = new Frame("RECEIPT\nreceipt-id:" + receipt + "\n\n\u0000");
+                connection.send(connectionId, receiptFrame);
+            }
         }
     }
 
